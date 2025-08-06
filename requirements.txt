@@ -1,0 +1,5 @@
+# Application dependency
+npm install express
+
+# Development dependencies
+npm install --save-dev jest supertest eslint
