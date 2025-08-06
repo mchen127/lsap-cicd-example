@@ -1,2 +1,1 @@
-# LSAP CI/CD Example
-
+# LSAP CI/CD Example App
