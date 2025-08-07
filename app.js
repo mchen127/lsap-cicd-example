@@ -1,0 +1,15 @@
+// app.js
+const express = require("express");
+const app = express();
+
+// Main endpoint
+app.get("/", (req, res) => {
+  res.send("<h1>Welcome to the CI/CD example app! Version: 1.0.0</h1>");
+});
+
+// Health check endpoint for Lab 2
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
+module.exports = app;
