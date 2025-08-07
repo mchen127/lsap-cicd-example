@@ -7,7 +7,9 @@ describe("API Endpoints", () => {
   it("should return a 200 OK status for the root endpoint", async () => {
     const res = await request(app).get("/");
     expect(res.statusCode).toEqual(200);
-    expect(res.text).toContain("Welcome to the CI/CD App!");
+    expect(res.text).toContain(
+      "Welcome to the CI/CD example app!"
+    );
   });
 
   it("should return a 200 OK status for the /health endpoint", async () => {
