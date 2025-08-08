@@ -5,10 +5,12 @@ WORKDIR /usr/src/app
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install
+
+# Install only the production dependencies inside the box
+RUN npm install --omit=dev
 
 # Copy the rest of the application source code
 COPY . .
 
-EXPOSE 80
+EXPOSE 3000
 CMD [ "node", "server.js" ]

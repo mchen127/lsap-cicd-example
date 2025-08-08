@@ -23,7 +23,7 @@ pipeline {
 
                     // Run the new container, mapping port 8081 inside the VM
                     echo 'Deploying container...'
-                    sh "docker run -d --name staging-app -p 8081:80 ${imageName}"
+                    sh "docker run -d --name staging-app -p 8081:3000 ${imageName}"
 
                     // Verify the deployment
                     echo 'Verifying deployment...'
