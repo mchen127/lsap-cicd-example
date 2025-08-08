@@ -1,17 +1,28 @@
-// Basic tests for the server endpoints using Jest and Supertest.
+// app.test.js
 const request = require("supertest");
-const { app, server } = require("./app"); // Import the Express app and server
+const app = require("./app"); // Import the app logic
 
-describe("Server Endpoints", () => {
-  // This block runs after all tests are finished.
-  // It's crucial for ensuring the server shuts down properly and doesn't leave open handles.
-  afterAll((done) => {
-    server.close(done);
+let server; // Define a variable to hold the server instance
+
+// This block runs once before all tests
+beforeAll((done) => {
+  // Start the server on a specific port for testing
+  server = app.listen(3000, () => {
+    console.log("Test server running on port 3000");
+    done(); // Signal that the setup is complete
   });
+});
 
-  // Test case for the root ('/') endpoint.
-  it("should return a 200 OK status and the correct welcome message", async () => {
-    const res = await request(app).get("/");
+// This block runs once after all tests are finished
+afterAll((done) => {
+  // Shut down the server and release the port
+  server.close(done);
+});
+
+describe("API Endpoints", () => {
+  it("should return a 200 OK status and welcome message for the root endpoint", async () => {
+    // Test against the running server
+    const res = await request(server).get("/");
     expect(res.statusCode).toEqual(200);
     expect(res.text).toContain("Welcome to the CI/CD Workshop App!");
   });
