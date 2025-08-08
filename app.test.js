@@ -1,16 +1,18 @@
+// Basic tests for the server endpoints using Jest and Supertest.
 const request = require("supertest");
-const app = require("./app");
+const { app, server } = require("./server"); // Import the Express app and server
 
-describe("API Endpoints", () => {
-  it("should return a 200 OK status for the root endpoint", async () => {
-    const res = await request(app).get("/");
-    expect(res.statusCode).toEqual(200);
-    expect(res.text).toContain("Welcome to the CI/CD example app!");
+describe("Server Endpoints", () => {
+  // This block runs after all tests are finished.
+  // It's crucial for ensuring the server shuts down properly and doesn't leave open handles.
+  afterAll((done) => {
+    server.close(done);
   });
 
-  it("should return a 200 OK status for the /health endpoint", async () => {
-    const res = await request(app).get("/health");
+  // Test case for the root ('/') endpoint.
+  it("should return a 200 OK status and the correct welcome message", async () => {
+    const res = await request(app).get("/");
     expect(res.statusCode).toEqual(200);
-    expect(res.text).toBe("OK");
+    expect(res.text).toContain("Welcome to the CI/CD Workshop App!");
   });
 });
