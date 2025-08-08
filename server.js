@@ -1,7 +1,8 @@
 // A simple Express web server for the CI/CD lab
 const express = require("express");
 const app = express();
-const PORT = 80;
+// CHANGE: Use a non-privileged port (greater than 1024)
+const PORT = 3000;
 
 // The main endpoint for the application.
 // We include a version number to make it easy to see deployment changes later.
