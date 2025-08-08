@@ -1,6 +1,6 @@
 // Basic tests for the server endpoints using Jest and Supertest.
 const request = require("supertest");
-const { app, server } = require("./server"); // Import the Express app and server
+const { app, server } = require("./app"); // Import the Express app and server
 
 describe("Server Endpoints", () => {
   // This block runs after all tests are finished.
