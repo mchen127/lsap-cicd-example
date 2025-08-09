@@ -1,6 +1,12 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'IMAGE_TAG_OVERRIDE', defaultValue: '',
+            description: 'To roll back, enter a specific Docker Hub image tag (e.g., your-id/app:5) and run manually.'),
+        string(name: 'RECIPIENTS', defaultValue: 'mchen127.p@gmail.com', description: 'Mail recipients on failure')
+    }
+
     stages {
         stage('Build & Test') {
             steps {
@@ -29,19 +35,84 @@ pipeline {
             }
             steps {
                 script {
-                    String imageName = "staging-app:${env.BUILD_NUMBER}"
+                    // Define your Docker Hub username and image name
+                    String dockerhubUser = 'mchen127'
+                    String imageName = "${dockerhubUser}/cicd-workshop-app:${env.BUILD_NUMBER}"
+
                     echo "Building image: ${imageName}"
                     sh "docker build -t ${imageName} ."
 
+                    // --- NEW SECTION: PUSH TO DOCKER HUB ---
+                    // Use the 'dockerhub-creds' ID we created in Jenkins
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        echo '--- Logging in to Docker Hub ---'
+                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+
+                        echo '--- Pushing image to Docker Hub ---'
+                        sh "docker push ${imageName}"
+                    }
+                    // --- END NEW SECTION ---
+
+                    // The rest of the staging deployment remains the same
                     sh 'docker stop staging-app || true'
                     sh 'docker rm staging-app || true'
-
-                    echo 'Deploying container...'
+                    echo 'Deploying container to staging...'
                     sh "docker run -d --name staging-app -p 8081:3000 ${imageName}"
-
-                    echo 'Verifying deployment...'
+                    echo 'Verifying staging deployment...'
                     sleep(5)
                     sh 'curl -f http://localhost:8081/health'
+                }
+            }
+        }
+        // --- NEW: PRODUCTION DEPLOYMENT STAGE ---
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    // --- SMART DEPLOYMENT LOGIC ---
+                    String dockerhubUser = 'DOCKER_USER' // <-- CHANGE THIS
+                    String imageToDeploy
+
+                    if (params.IMAGE_TAG_OVERRIDE.trim()) {
+                        // If the override parameter is filled, use it for a rollback.
+                        imageToDeploy = params.IMAGE_TAG_OVERRIDE
+                        echo "--- ROLLBACK INITIATED: Deploying specified image: ${imageToDeploy} ---"
+                    } else {
+                        // Otherwise, find the latest successful dev build's image tag.
+                        // For this lab, we'll use a simplified approach.
+                        // In a real-world scenario, you'd have a more robust way to get this tag.
+                        String latestDevBuildNumber = job.parent.getJob('dev').getLastSuccessfulBuild().getNumber()
+                        imageToDeploy = "${dockerhubUser}/cicd-workshop-app:${latestDevBuildNumber}"
+                        echo "--- STANDARD DEPLOYMENT: Deploying latest dev image: ${imageToDeploy} ---"
+                    }
+
+                    // --- MANUAL APPROVAL GATE ---
+                    input "Deploy image '${imageToDeploy}' to PRODUCTION?"
+
+                    // --- DEPLOYMENT EXECUTION ---
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+                    }
+
+                    echo '--- Pulling production image from Docker Hub ---'
+                    sh "docker pull ${imageToDeploy}"
+
+                    sh 'docker stop prod-app || true'
+                    sh 'docker rm prod-app || true'
+
+                    echo 'Deploying container to production...'
+                    // Deploy on a different port (8082) to separate from staging
+                    sh "docker run -d --name prod-app -p 8082:3000 ${imageToDeploy}"
                 }
             }
         }
