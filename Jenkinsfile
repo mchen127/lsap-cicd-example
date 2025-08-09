@@ -34,75 +34,73 @@ pipeline {
             }
         }
 
-        // --- MODIFIED STAGE ---
-        // This stage now has a 'when' condition. It will be SKIPPED
-        // on any branch that is NOT the 'dev' branch.
+        // --- NEW STAGE ---
+        // This stage builds the Docker image.
+        // It will run on ALL branches that have this Jenkinsfile.
         stage('Deploy and Verify') {
             when {
                 branch 'dev'
             }
             steps {
                 script {
-                    // Define your Docker Hub username and image name
-                    String dockerhubUser = 'mchen127'
-                    String imageName = "${dockerhubUser}/cicd-workshop-app:${env.BUILD_NUMBER}"
+                    def dockerhubUser = 'mchen127'
+                    // Define two tags: one with the build number for history, one for 'latest-dev'
+                    def versionedImage = "${dockerhubUser}/cicd-workshop-app:${env.BUILD_NUMBER}"
+                    def latestDevImage = "${dockerhubUser}/cicd-workshop-app:latest-dev"
 
-                    echo "Building image: ${imageName}"
-                    sh "docker build -t ${imageName} ."
+                    echo "Building image: ${versionedImage}"
+                    sh "docker build -t ${versionedImage} ."
+                    
+                    // Also tag the same image as 'latest-dev'
+                    sh "docker tag ${versionedImage} ${latestDevImage}"
 
-                    // --- NEW SECTION: PUSH TO DOCKER HUB ---
-                    // Use the 'dockerhub-creds' ID we created in Jenkins
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         echo '--- Logging in to Docker Hub ---'
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
 
-                        echo '--- Pushing image to Docker Hub ---'
-                        sh "docker push ${imageName}"
+                        echo "--- Pushing ${versionedImage} ---"
+                        sh "docker push ${versionedImage}"
+                        
+                        echo "--- Pushing ${latestDevImage} ---"
+                        sh "docker push ${latestDevImage}"
                     }
-                    // --- END NEW SECTION ---
 
-                    // The rest of the staging deployment remains the same
+                    // Deploy the versioned image to staging
                     sh 'docker stop staging-app || true'
                     sh 'docker rm staging-app || true'
-                    echo 'Deploying container to staging...'
-                    sh "docker run -d --name staging-app -p 8081:3000 ${imageName}"
-                    echo 'Verifying staging deployment...'
+                    sh "docker run -d --name staging-app -p 8081:3000 ${versionedImage}"
                     sleep(5)
                     sh 'curl -f http://localhost:8081/health'
                 }
             }
         }
-        // --- NEW: PRODUCTION DEPLOYMENT STAGE ---
+
+        // --- NEW STAGE ---
+        // This stage deploys the application to production.
+        // It will only run when the branch is 'main'.
+        // It also allows for rollbacks by specifying an image tag.    
         stage('Deploy to Production') {
             when {
                 branch 'main'
             }
             steps {
                 script {
-                    def dockerhubUser = 'mchen127' // <-- Make sure this is correct
+                    def dockerhubUser = 'mchen127'
                     def imageToDeploy
 
                     if (params.IMAGE_TAG_OVERRIDE.trim()) {
+                        // For rollbacks, use the specified tag
                         imageToDeploy = params.IMAGE_TAG_OVERRIDE
                         echo "--- ROLLBACK INITIATED: Deploying specified image: ${imageToDeploy} ---"
                     } else {
-                        // --- THIS IS THE FIXED LINE ---
-                        def latestDevBuildNumber = currentBuild.rawBuild.getProject().getParent().getItem('dev').getLastSuccessfulBuild().getNumber()
-                        imageToDeploy = "${dockerhubUser}/cicd-workshop-app:${latestDevBuildNumber}"
+                        // For standard deployments, always use the 'latest-dev' tag
+                        imageToDeploy = "${dockerhubUser}/cicd-workshop-app:latest-dev"
                         echo "--- STANDARD DEPLOYMENT: Deploying latest dev image: ${imageToDeploy} ---"
                     }
                     
                     input "Deploy image '${imageToDeploy}' to PRODUCTION?"
 
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                     }
 
