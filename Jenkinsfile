@@ -106,13 +106,13 @@ pipeline {
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                     }
 
-                    echo "--- Pulling production image from Docker Hub ---"
+                    echo '--- Pulling production image from Docker Hub ---'
                     sh "docker pull ${imageToDeploy}"
                     
-                    sh "docker stop prod-app || true"
-                    sh "docker rm prod-app || true"
+                    sh 'docker stop prod-app || true'
+                    sh 'docker rm prod-app || true'
                     
-                    echo "Deploying container to production..."
+                    echo 'Deploying container to production...'
                     sh "docker run -d --name prod-app -p 8082:3000 ${imageToDeploy}"
                 }
             }
