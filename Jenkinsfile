@@ -78,7 +78,7 @@ pipeline {
         // --- NEW STAGE ---
         // This stage deploys the application to production.
         // It will only run when the branch is 'main'.
-        // It also allows for rollbacks by specifying an image tag.    
+        // It also allows for rollbacks by specifying an image tag.
         stage('Deploy to Production') {
             when {
                 branch 'main'
