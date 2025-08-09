@@ -1,5 +1,1 @@
-sudo usermod -aG docker jenkins
-sudo usermod -aG docker $USER
-
-sudo systemctl restart jenkins
-newgrp docker
+curl -f http://localhost:8081/health
