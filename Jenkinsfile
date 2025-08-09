@@ -54,7 +54,7 @@ pipeline {
         // This 'failure' block only runs if any stage in the pipeline has failed.
         failure {
             echo '--- Build Failed. Sending Notification. ---'
-            mail to: 'mchen127.p@gamil.com, morris1297@ntu.im',
+            mail to: 'mchen127.p@gmail.com, morris1297@ntu.im',
                  subject: "Build FAILED by r14725021: ${currentBuild.fullDisplayName}",
                  body: "A problem occurred in the '${env.STAGE_NAME}' stage. Check the build log at ${env.BUILD_URL}"
         }
