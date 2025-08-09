@@ -83,27 +83,21 @@ pipeline {
             }
             steps {
                 script {
-                    // --- SMART DEPLOYMENT LOGIC ---
-                    String dockerhubUser = 'DOCKER_USER' // <-- CHANGE THIS
-                    String imageToDeploy
+                    def dockerhubUser = 'mchen127' // <-- Make sure this is correct
+                    def imageToDeploy
 
                     if (params.IMAGE_TAG_OVERRIDE.trim()) {
-                        // If the override parameter is filled, use it for a rollback.
                         imageToDeploy = params.IMAGE_TAG_OVERRIDE
                         echo "--- ROLLBACK INITIATED: Deploying specified image: ${imageToDeploy} ---"
                     } else {
-                        // Otherwise, find the latest successful dev build's image tag.
-                        // For this lab, we'll use a simplified approach.
-                        // In a real-world scenario, you'd have a more robust way to get this tag.
-                        String latestDevBuildNumber = job.parent.getJob('dev').getLastSuccessfulBuild().getNumber()
+                        // --- THIS IS THE FIXED LINE ---
+                        def latestDevBuildNumber = currentBuild.rawBuild.getProject().getParent().getItem('dev').getLastSuccessfulBuild().getNumber()
                         imageToDeploy = "${dockerhubUser}/cicd-workshop-app:${latestDevBuildNumber}"
                         echo "--- STANDARD DEPLOYMENT: Deploying latest dev image: ${imageToDeploy} ---"
                     }
-
-                    // --- MANUAL APPROVAL GATE ---
+                    
                     input "Deploy image '${imageToDeploy}' to PRODUCTION?"
 
-                    // --- DEPLOYMENT EXECUTION ---
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-creds',
                         usernameVariable: 'DOCKER_USER',
@@ -112,14 +106,13 @@ pipeline {
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                     }
 
-                    echo '--- Pulling production image from Docker Hub ---'
+                    echo "--- Pulling production image from Docker Hub ---"
                     sh "docker pull ${imageToDeploy}"
-
-                    sh 'docker stop prod-app || true'
-                    sh 'docker rm prod-app || true'
-
-                    echo 'Deploying container to production...'
-                    // Deploy on a different port (8082) to separate from staging
+                    
+                    sh "docker stop prod-app || true"
+                    sh "docker rm prod-app || true"
+                    
+                    echo "Deploying container to production..."
                     sh "docker run -d --name prod-app -p 8082:3000 ${imageToDeploy}"
                 }
             }
