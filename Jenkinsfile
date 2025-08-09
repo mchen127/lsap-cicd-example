@@ -7,7 +7,6 @@ pipeline {
             defaultValue: '',
             description: 'To roll back, enter a specific Docker Hub image tag (e.g., your-id/app:5) and run manually.'
         )
-
         string(
             name: 'RECIPIENTS',
             defaultValue: 'mchen127.p@gmail.com, morris1297@ntu.im',
@@ -24,9 +23,6 @@ pipeline {
             }
         }
 
-        // --- NEW STAGE ---
-        // This stage runs our linter to check for code quality.
-        // It will run on ALL branches that have this Jenkinsfile.
         stage('Static Analysis (Lint)') {
             steps {
                 echo '--- Running Linter ---'
@@ -34,9 +30,6 @@ pipeline {
             }
         }
 
-        // --- NEW STAGE ---
-        // This stage builds the Docker image.
-        // It will run on ALL branches that have this Jenkinsfile.
         stage('Deploy and Verify') {
             when {
                 branch 'dev'
@@ -75,10 +68,6 @@ pipeline {
             }
         }
 
-        // --- NEW STAGE ---
-        // This stage deploys the application to production.
-        // It will only run when the branch is 'main'.
-        // It also allows for rollbacks by specifying an image tag.
         stage('Deploy to Production') {
             when {
                 branch 'main'
@@ -117,11 +106,7 @@ pipeline {
         }
     }
 
-    // --- NEW SECTION ---
-    // This 'post' block runs after all stages are complete.
-    // It defines actions based on the final status of the pipeline.
     post {
-        // This 'failure' block only runs if any stage in the pipeline has failed.
         failure {
             echo '--- Build Failed. Sending Notification. ---'
             mail to: params.RECIPIENTS,
