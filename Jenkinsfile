@@ -79,9 +79,9 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         // Image naming
-                        string imageBase         = "${DOCKER_USER}/${params.DOCKER_REPO}"
-                        string buildTag          = "${imageBase}:${env.BUILD_NUMBER}"
-                        string candidateTag      = "${imageBase}:candidate-${env.BUILD_NUMBER}"
+                        String imageBase         = "${DOCKER_USER}/${params.DOCKER_REPO}"
+                        String buildTag          = "${imageBase}:${env.BUILD_NUMBER}"
+                        String candidateTag      = "${imageBase}:candidate-${env.BUILD_NUMBER}"
 
                         echo "Building image: ${buildTag}"
                         sh """
@@ -132,11 +132,11 @@ pipeline {
             steps {
                 script {
                     // choose image: parameter override or prompt operator
-                    string imageToDeploy = params.IMAGE_TAG_OVERRIDE?.trim()
+                    String imageToDeploy = params.IMAGE_TAG_OVERRIDE?.trim()
 
                     if (!imageToDeploy) {
                         // Ask for the exact image to deploy (no brittle cross-job lookups)
-                        string inputValues = input(
+                        String inputValues = input(
                             message: 'Enter Docker image to deploy to PRODUCTION (format: <user>/<repo>:<tag>)',
                             ok: 'Deploy',
                             parameters: [
