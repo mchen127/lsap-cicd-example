@@ -14,4 +14,6 @@ app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
 
+let x; // This will trigger an 'unused-vars' linting error
+
 module.exports = app;
