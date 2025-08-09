@@ -5,7 +5,6 @@ pipeline {
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '30'))
         timestamps()
-        ansiColor('xterm')
     }
 
     parameters {
