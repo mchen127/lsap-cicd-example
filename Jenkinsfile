@@ -47,13 +47,17 @@ pipeline {
                     // Also tag the same image as 'latest-dev'
                     sh "docker tag ${versionedImage} ${latestDevImage}"
 
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
                         echo '--- Logging in to Docker Hub ---'
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
 
                         echo "--- Pushing ${versionedImage} ---"
                         sh "docker push ${versionedImage}"
-                        
+
                         echo "--- Pushing ${latestDevImage} ---"
                         sh "docker push ${latestDevImage}"
                     }
