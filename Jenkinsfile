@@ -30,29 +30,26 @@ pipeline {
             }
         }
 
-        stage('Deploy and Verify') {
+        stage('Build, Push, and Deploy to Staging') {
             when {
                 branch 'dev'
             }
             steps {
                 script {
-                    def dockerhubUser = 'mchen127'
-                    // Define two tags: one with the build number for history, one for 'latest-dev'
-                    def versionedImage = "${dockerhubUser}/cicd-workshop-app:${env.BUILD_NUMBER}"
-                    def latestDevImage = "${dockerhubUser}/cicd-workshop-app:latest-dev"
-
-                    echo "Building image: ${versionedImage}"
-                    sh "docker build -t ${versionedImage} ."
-                    
-                    // Also tag the same image as 'latest-dev'
-                    sh "docker tag ${versionedImage} ${latestDevImage}"
-
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-creds',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        echo '--- Logging in to Docker Hub ---'
+                        def dockerhubUser = DOCKER_USER
+                        def versionedImage = "${dockerhubUser}/cicd-workshop-app:dev-${env.BUILD_NUMBER}"
+                        def latestDevImage = "${dockerhubUser}/cicd-workshop-app:latest-dev"
+
+                        echo "Building dev image: ${versionedImage}"
+                        sh "docker build -t ${versionedImage} ."
+                        sh "docker tag ${versionedImage} ${latestDevImage}"
+
+                        echo '--- Logging in to Docker Hub (dev) ---'
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
 
                         echo "--- Pushing ${versionedImage} ---"
@@ -60,14 +57,46 @@ pipeline {
 
                         echo "--- Pushing ${latestDevImage} ---"
                         sh "docker push ${latestDevImage}"
-                    }
 
-                    // Deploy the versioned image to staging
-                    sh 'docker stop staging-app || true'
-                    sh 'docker rm staging-app || true'
-                    sh "docker run -d --name staging-app -p 8081:3000 ${versionedImage}"
-                    sleep(5)
-                    sh 'curl -f http://localhost:8081/health'
+                        echo '--- Deploying to STAGING from dev image ---'
+                        sh 'docker stop staging-app || true'
+                        sh 'docker rm staging-app || true'
+                        sh "docker run -d --name staging-app -p 8081:3000 ${versionedImage}"
+                        sleep(5)
+                        sh 'curl -f http://localhost:8081/health'
+                    }
+                }
+            }
+        }
+
+        stage('Build and Push Production Image') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        def dockerhubUser = DOCKER_USER
+                        def prodVersionedImage = "${dockerhubUser}/cicd-workshop-app:main-${env.BUILD_NUMBER}"
+                        def latestMainImage = "${dockerhubUser}/cicd-workshop-app:latest-main"
+
+                        echo "Building production image: ${prodVersionedImage}"
+                        sh "docker build -t ${prodVersionedImage} ."
+                        sh "docker tag ${prodVersionedImage} ${latestMainImage}"
+
+                        echo '--- Logging in to Docker Hub (main) ---'
+                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+
+                        echo "--- Pushing ${prodVersionedImage} ---"
+                        sh "docker push ${prodVersionedImage}"
+
+                        echo "--- Pushing ${latestMainImage} ---"
+                        sh "docker push ${latestMainImage}"
+                    }
                 }
             }
         }
@@ -78,33 +107,36 @@ pipeline {
             }
             steps {
                 script {
-                    def dockerhubUser = 'mchen127'
-                    def imageToDeploy
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        def dockerhubUser = DOCKER_USER
+                        def imageToDeploy
 
-                    if (params.IMAGE_TAG_OVERRIDE.trim()) {
-                        // For rollbacks, use the specified tag
-                        imageToDeploy = params.IMAGE_TAG_OVERRIDE
-                        echo "--- ROLLBACK INITIATED: Deploying specified image: ${imageToDeploy} ---"
-                    } else {
-                        // For standard deployments, always use the 'latest-dev' tag
-                        imageToDeploy = "${dockerhubUser}/cicd-workshop-app:latest-dev"
-                        echo "--- STANDARD DEPLOYMENT: Deploying latest dev image: ${imageToDeploy} ---"
-                    }
-                    
-                    input "Deploy image '${imageToDeploy}' to PRODUCTION?"
+                        if (params.IMAGE_TAG_OVERRIDE.trim()) {
+                            imageToDeploy = params.IMAGE_TAG_OVERRIDE
+                            echo "--- ROLLBACK INITIATED: Deploying specified image: ${imageToDeploy} ---"
+                        } else {
+                            imageToDeploy = "${dockerhubUser}/cicd-workshop-app:latest-main"
+                            echo "--- STANDARD DEPLOYMENT: Deploying latest MAIN image: ${imageToDeploy} ---"
+                        }
 
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        input "Deploy image '${imageToDeploy}' to PRODUCTION?"
+
+                        echo '--- Logging in to Docker Hub (deploy) ---'
                         sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                    }
 
-                    echo '--- Pulling production image from Docker Hub ---'
-                    sh "docker pull ${imageToDeploy}"
-                    
-                    sh 'docker stop prod-app || true'
-                    sh 'docker rm prod-app || true'
-                    
-                    echo 'Deploying container to production...'
-                    sh "docker run -d --name prod-app -p 8082:3000 ${imageToDeploy}"
+                        echo '--- Pulling production image from Docker Hub ---'
+                        sh "docker pull ${imageToDeploy}"
+
+                        sh 'docker stop prod-app || true'
+                        sh 'docker rm prod-app || true'
+
+                        echo 'Deploying container to production...'
+                        sh "docker run -d --name prod-app -p 8082:3000 ${imageToDeploy}"
+                    }
                 }
             }
         }
